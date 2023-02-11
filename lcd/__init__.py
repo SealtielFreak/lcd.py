@@ -1,1 +1,1 @@
-from .lcd_api import *
+from lcd import *

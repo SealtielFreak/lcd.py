@@ -1,7 +1,7 @@
 """Implements a HD44780 character LCD connected via MCP23008 on I2C.
    This was tested with: https://www.adafruit.com/product/292"""
 
-from lcd_api import LcdApi
+import lcd.api
 from pyb import delay
 
 # The MCP23008 has a jumper selectable address: 0x20 - 0x27
@@ -9,17 +9,17 @@ DEFAULT_I2C_ADDR = 0x20
 
 # MCP23008 Registers
 
-IODIR   = 0x00
-IPOL    = 0x01
+IODIR = 0x00
+IPOL = 0x01
 GPINTEN = 0x02
-DEFVAL  = 0x03
-INTCON  = 0x04
-IOCON   = 0x05
-GPPU    = 0x06
-INTF    = 0x07
-INTCAP  = 0x08
-GPIO    = 0x09
-OLAT    = 0x0A
+DEFVAL = 0x03
+INTCON = 0x04
+IOCON = 0x05
+GPPU = 0x06
+INTF = 0x07
+INTCAP = 0x08
+GPIO = 0x09
+OLAT = 0x0A
 
 # Defines shifts or masks for the various LCD line attached to the MCP23008
 
@@ -38,7 +38,7 @@ SHIFT_DATA = 3
 SHIFT_BACKLIGHT = 7
 
 
-class I2cLcd(LcdApi):
+class LCD(lcd.api.BasicLCD):
     """Implements a HD44780 character LCD connected via MCP23008 on I2C."""
 
     def __init__(self, i2c, i2c_addr, num_lines, num_columns):
@@ -53,7 +53,7 @@ class I2cLcd(LcdApi):
 
         # Send reset 3 times
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
-        delay(5)    # need to delay at least 4.1 msec
+        delay(5)  # need to delay at least 4.1 msec
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
         delay(1)
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
@@ -61,7 +61,7 @@ class I2cLcd(LcdApi):
         # Put LCD into 4 bit mode
         self.hal_write_init_nibble(self.LCD_FUNCTION)
         delay(1)
-        LcdApi.__init__(self, num_lines, num_columns)
+        super().__init__(num_lines, num_columns)
         cmd = self.LCD_FUNCTION
         if num_lines > 1:
             cmd |= self.LCD_FUNCTION_2LINES

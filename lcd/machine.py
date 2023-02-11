@@ -1,8 +1,9 @@
 """Implements a HD44780 character LCD connected via PCF8574 on I2C.
    This was tested with: https://www.wemos.cc/product/d1-mini.html"""
 
-from lcd_api import LcdApi
 from time import sleep_ms
+
+import lcd.api
 
 # The PCF8574 has a jumper selectable address: 0x20 - 0x27
 DEFAULT_I2C_ADDR = 0x27
@@ -16,17 +17,17 @@ SHIFT_BACKLIGHT = 3
 SHIFT_DATA = 4
 
 
-class I2cLcd(LcdApi):
+class LCD(lcd.api.BasicLCD):
     """Implements a HD44780 character LCD connected via PCF8574 on I2C."""
 
     def __init__(self, i2c, i2c_addr, num_lines, num_columns):
         self.i2c = i2c
         self.i2c_addr = i2c_addr
         self.i2c.writeto(self.i2c_addr, bytearray([0]))
-        sleep_ms(20)   # Allow LCD time to powerup
+        sleep_ms(20)  # Allow LCD time to powerup
         # Send reset 3 times
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
-        sleep_ms(5)    # need to delay at least 4.1 msec
+        sleep_ms(5)  # need to delay at least 4.1 msec
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
         sleep_ms(1)
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
@@ -34,7 +35,7 @@ class I2cLcd(LcdApi):
         # Put LCD into 4 bit mode
         self.hal_write_init_nibble(self.LCD_FUNCTION)
         sleep_ms(1)
-        LcdApi.__init__(self, num_lines, num_columns)
+        LCD.__init__(self, num_lines, num_columns)
         cmd = self.LCD_FUNCTION
         if num_lines > 1:
             cmd |= self.LCD_FUNCTION_2LINES

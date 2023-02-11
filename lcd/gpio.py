@@ -1,20 +1,17 @@
-"""Implements a HD44780 character LCD connected via Onion Omega GPIO pins."""
+"""Implements a HD44780 character LCD connected via pyboard GPIO pins."""
 
-from lcd_api import LcdApi
-from time import sleep
+import lcd.api
+from pyb import Pin, delay, udelay
 
-# https://docs.onion.io/omega2-docs/gpio-python-module.html#gpio-python-module
-# requires a python3 modification of the current standard onionGpio (as of 2021-11-20)
-from onionGpio import OnionGpio
 
-class GpioLcd(LcdApi):
-    """Implements a HD44780 character LCD connected via ESP32 GPIO pins."""
+class LCD(lcd.api.BasicLCD):
+    """Implements a HD44780 character LCD connected via pyboard GPIO pins."""
 
     def __init__(self, rs_pin, enable_pin, d0_pin=None, d1_pin=None,
                  d2_pin=None, d3_pin=None, d4_pin=None, d5_pin=None,
                  d6_pin=None, d7_pin=None, rw_pin=None, backlight_pin=None,
                  num_lines=2, num_columns=16):
-        """Constructs the GpioLcd object. All of the arguments must be onionGpio.OnionGpio
+        """Constructs the GpioLcd object. All of the arguments must be pyb.Pin
         objects which describe which pin the given line from the LCD is
         connected to.
 
@@ -56,50 +53,62 @@ class GpioLcd(LcdApi):
             self.d5_pin = d1_pin
             self.d6_pin = d2_pin
             self.d7_pin = d3_pin
-        self.rs_pin.setOutputDirection(0)
+        self.rs_pin.init(Pin.OUT_PP)
+        self.rs_pin.low()
         if self.rw_pin:
-            self.rw_pin.setOutputDirection(0)
-        self.enable_pin.setOutputDirection(0)
-        self.d4_pin.setOutputDirection(0)
-        self.d5_pin.setOutputDirection(0)
-        self.d6_pin.setOutputDirection(0)
-        self.d7_pin.setOutputDirection(0)
+            self.rw_pin.init(Pin.OUT_PP)
+            self.rw_pin.low()
+        self.enable_pin.init(Pin.OUT_PP)
+        self.enable_pin.low()
+        self.d4_pin.init(Pin.OUT_PP)
+        self.d5_pin.init(Pin.OUT_PP)
+        self.d6_pin.init(Pin.OUT_PP)
+        self.d7_pin.init(Pin.OUT_PP)
+        self.d4_pin.low()
+        self.d5_pin.low()
+        self.d6_pin.low()
+        self.d7_pin.low()
         if not self._4bit:
-            self.d0_pin.setOutputDirection(0)
-            self.d1_pin.setOutputDirection(0)
-            self.d2_pin.setOutputDirection(0)
-            self.d3_pin.setOutputDirection(0)
+            self.d0_pin.init(Pin.OUT_PP)
+            self.d1_pin.init(Pin.OUT_PP)
+            self.d2_pin.init(Pin.OUT_PP)
+            self.d3_pin.init(Pin.OUT_PP)
+            self.d0_pin.low()
+            self.d1_pin.low()
+            self.d2_pin.low()
+            self.d3_pin.low()
         if self.backlight_pin is not None:
-            self.backlight_pin.setOutputDirection(0)
+            self.backlight_pin.init(Pin.OUT_PP)
+            self.backlight_pin.low()
 
         # See about splitting this into begin
 
-        sleep(0.020)   # Allow LCD time to powerup
+        delay(20)  # Allow LCD time to powerup
         # Send reset 3 times
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
-        sleep(0.005)    # need to delay at least 4.1 msec
+        delay(5)  # need to delay at least 4.1 msec
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
-        sleep(0.001)
+        delay(1)
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
-        sleep(0.001)
+        delay(1)
         cmd = self.LCD_FUNCTION
         if not self._4bit:
             cmd |= self.LCD_FUNCTION_8BIT
         self.hal_write_init_nibble(cmd)
-        sleep(0.001)
-        LcdApi.__init__(self, num_lines, num_columns)
+        delay(1)
+        super().__init__(num_lines, num_columns)
         if num_lines > 1:
             cmd |= self.LCD_FUNCTION_2LINES
         self.hal_write_command(cmd)
 
     def hal_pulse_enable(self):
         """Pulse the enable line high, and then low again."""
-        self.enable_pin.setValue(0)
-        sleep(1/1E6)
-        self.enable_pin.setValue(1)
-        sleep(1/1E6)       # Enable pulse needs to be > 450 nsec
-        self.enable_pin.setValue(0)
-        sleep(100/1E6)     # Commands need > 37us to settle
+        self.enable_pin.low()
+        udelay(1)
+        self.enable_pin.high()
+        udelay(1)  # Enable pulse needs to be > 450 nsec
+        self.enable_pin.low()
+        udelay(100)  # Commands need > 37us to settle
 
     def hal_write_init_nibble(self, nibble):
         """Writes an initialization nibble to the LCD.
@@ -111,53 +120,48 @@ class GpioLcd(LcdApi):
     def hal_backlight_on(self):
         """Allows the hal layer to turn the backlight on."""
         if self.backlight_pin:
-            self.backlight_pin.setValue(1)
+            self.backlight_pin.high()
 
     def hal_backlight_off(self):
         """Allows the hal layer to turn the backlight off."""
         if self.backlight_pin:
-            self.backlight_pin.setValue(0)
+            self.backlight_pin.low()
 
     def hal_write_command(self, cmd):
         """Writes a command to the LCD.
 
         Data is latched on the falling edge of E.
         """
-        self.rs_pin.setValue(0)
+        self.rs_pin.low()
         self.hal_write_8bits(cmd)
         if cmd <= 3:
             # The home and clear commands require a worst
             # case delay of 4.1 msec
-            sleep(0.005)
+            delay(5)
 
     def hal_write_data(self, data):
         """Write data to the LCD."""
-        self.rs_pin.setValue(1)
+        self.rs_pin.high()
         self.hal_write_8bits(data)
 
     def hal_write_8bits(self, value):
         """Writes 8 bits of data to the LCD."""
         if self.rw_pin:
-            self.rw_pin.setValue(0)
+            self.rw_pin.low()
         if self._4bit:
             self.hal_write_4bits(value >> 4)
             self.hal_write_4bits(value)
         else:
-            # unlike machine.Pin, onionGpio.OnionGpio.setValue needs us to convert to 0s & 1s ourselves
-            self.d3_pin.setValue(int(bool(value & 0x08)))
-            self.d2_pin.setValue(int(bool(value & 0x04)))
-            self.d1_pin.setValue(int(bool(value & 0x02)))
-            self.d0_pin.setValue(int(bool(value & 0x01)))
+            self.d3_pin.value(value & 0x08)
+            self.d2_pin.value(value & 0x04)
+            self.d1_pin.value(value & 0x02)
+            self.d0_pin.value(value & 0x01)
             self.hal_write_4bits(value >> 4)
 
     def hal_write_4bits(self, nibble):
         """Writes 4 bits of data to the LCD."""
-        self.d7_pin.setValue(int(bool(nibble & 0x08)))
-        self.d6_pin.setValue(int(bool(nibble & 0x04)))
-        self.d5_pin.setValue(int(bool(nibble & 0x02)))
-        self.d4_pin.setValue(int(bool(nibble & 0x01)))
+        self.d7_pin.value(nibble & 0x08)
+        self.d6_pin.value(nibble & 0x04)
+        self.d5_pin.value(nibble & 0x02)
+        self.d4_pin.value(nibble & 0x01)
         self.hal_pulse_enable()
-
-    def hal_sleep_us(self, usecs):
-        """Sleep for some time (given in microseconds)."""
-        time.sleep(usecs/1E6) # Uses the standard python library time module for onion omega

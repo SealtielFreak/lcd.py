@@ -4,11 +4,11 @@
 
 import unittest
 
-from lcd import LcdApi
+from lcd import LCD
 
 DDRAM_SIZE = 128
 
-class LcdSim(LcdApi):
+class LcdSim(LCD):
     """Implements an HD44780 character LCD emulator.
 
        The addressing modes are described here:
@@ -16,7 +16,7 @@ class LcdSim(LcdApi):
     """
 
     def __init__(self, num_lines=2, num_columns=16):
-        LcdApi.__init__(self, num_lines, num_columns)
+        LCD.__init__(self, num_lines, num_columns)
         self.reset()
         self.num_lines = num_lines
         self.num_columns = num_columns
@@ -32,11 +32,11 @@ class LcdSim(LcdApi):
 
         Data is latched on the falling edge of E.
         """
-        if cmd == LcdApi.LCD_CLR:
+        if cmd == LCD.LCD_CLR:
             self.reset()
-        elif cmd == LcdApi.LCD_HOME:
+        elif cmd == LCD.LCD_HOME:
             self.addr = 0
-        elif cmd & LcdApi.LCD_DDRAM != 0:
+        elif cmd & LCD.LCD_DDRAM != 0:
             self.addr = cmd & 0x7f
 
     def hal_write_data(self, data):
